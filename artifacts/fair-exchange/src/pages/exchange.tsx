@@ -122,7 +122,7 @@ export default function ExchangePage() {
     setNotice('');
     clearBatch.mutate(
       { batchId: snapshot.batch.id },
-      { onSuccess: () => mutationSuccess('Batch reveal and simulated uniform-price clearing completed.') },
+      { onSuccess: () => mutationSuccess('Batch reveal and simulated McAfee clearing completed.') },
     );
   }
 
@@ -246,7 +246,7 @@ export default function ExchangePage() {
               </li>
               <li className="flex items-start gap-2.5">
                 <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full font-mono text-[9px] ${snapshot.batch.status === 'SETTLED' ? 'bg-[#dce9dd] text-[#42684e]' : 'bg-[#e7e5dc] text-[#737e74]'}`}>03</span>
-                <span className="pt-0.5 text-[10px] leading-relaxed text-[#607268]">Reveal and clear at one price</span>
+                <span className="pt-0.5 text-[10px] leading-relaxed text-[#607268]">Reveal and apply McAfee rule</span>
               </li>
             </ol>
           </div>

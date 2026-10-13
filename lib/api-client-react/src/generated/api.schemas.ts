@@ -31,6 +31,15 @@ export const AuctionBatchStatus = {
   ABORTED: 'ABORTED',
 } as const;
 
+export type AuctionBatchClearingRule = typeof AuctionBatchClearingRule[keyof typeof AuctionBatchClearingRule];
+
+
+export const AuctionBatchClearingRule = {
+  none: 'none',
+  uniform: 'uniform',
+  'trade-reduction': 'trade-reduction',
+} as const;
+
 export interface AuctionBatch {
   id: string;
   round: number;
@@ -41,9 +50,13 @@ export interface AuctionBatch {
   sharesReceived: number;
   quorumReached: boolean;
   submittedOrderCount: number;
+  clearingRule: AuctionBatchClearingRule;
   /** @nullable */
-  clearingPrice: number | null;
+  buyerPrice: number | null;
+  /** @nullable */
+  sellerPrice: number | null;
   matchedVolume: number;
+  mechanismSurplus: number;
   /** @nullable */
   outcome: string | null;
 }
@@ -114,13 +127,25 @@ export interface Committee {
   members: CommitteeMember[];
 }
 
+export type ExchangeStatsLastClearingRule = typeof ExchangeStatsLastClearingRule[keyof typeof ExchangeStatsLastClearingRule];
+
+
+export const ExchangeStatsLastClearingRule = {
+  none: 'none',
+  uniform: 'uniform',
+  'trade-reduction': 'trade-reduction',
+} as const;
+
 export interface ExchangeStats {
   totalVolume: number;
   settledBatches: number;
   abortedBatches: number;
   activeOrders: number;
   /** @nullable */
-  lastClearingPrice: number | null;
+  lastBuyerPrice: number | null;
+  /** @nullable */
+  lastSellerPrice: number | null;
+  lastClearingRule: ExchangeStatsLastClearingRule;
 }
 
 export type AuditEventStatus = typeof AuditEventStatus[keyof typeof AuditEventStatus];

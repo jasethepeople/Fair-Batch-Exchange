@@ -66,7 +66,7 @@ paths:
     post:
       operationId: clearBatch
       tags: [exchange]
-      summary: Reveal and clear the active batch using uniform pricing
+      summary: Reveal and clear the active batch using the McAfee double auction
       parameters:
         - name: batchId
           in: path
@@ -178,9 +178,16 @@ components:
           type: boolean
         submittedOrderCount:
           type: integer
-        clearingPrice:
+        clearingRule:
+          type: string
+          enum: [none, uniform, trade-reduction]
+        buyerPrice:
+          type: [number, "null"]
+        sellerPrice:
           type: [number, "null"]
         matchedVolume:
+          type: number
+        mechanismSurplus:
           type: number
         outcome:
           type: [string, "null"]
@@ -194,8 +201,11 @@ components:
         - sharesReceived
         - quorumReached
         - submittedOrderCount
-        - clearingPrice
+        - clearingRule
+        - buyerPrice
+        - sellerPrice
         - matchedVolume
+        - mechanismSurplus
         - outcome
     Order:
       type: object
@@ -280,14 +290,21 @@ components:
           type: integer
         activeOrders:
           type: integer
-        lastClearingPrice:
+        lastBuyerPrice:
           type: [number, "null"]
+        lastSellerPrice:
+          type: [number, "null"]
+        lastClearingRule:
+          type: string
+          enum: [none, uniform, trade-reduction]
       required:
         - totalVolume
         - settledBatches
         - abortedBatches
         - activeOrders
-        - lastClearingPrice
+        - lastBuyerPrice
+        - lastSellerPrice
+        - lastClearingRule
     AuditEvent:
       type: object
       properties:

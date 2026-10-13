@@ -34,7 +34,7 @@ export function CommitteePanel({ committee }: { committee: Committee }) {
         </div>
         <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
           {committee.quorumReached
-            ? 'The simulated quorum can authorize reveal and uniform-price clearing.'
+            ? 'The simulated quorum can authorize reveal and McAfee clearing.'
             : `At least ${committee.threshold} shares are needed; ${Math.max(0, committee.threshold - committee.sharesReceived)} more required.`}
         </p>
       </div>

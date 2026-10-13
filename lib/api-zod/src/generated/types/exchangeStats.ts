@@ -5,6 +5,7 @@
  * API for the Fair Exchange batch-auction simulation
  * OpenAPI spec version: 0.1.0
  */
+import type { ExchangeStatsLastClearingRule } from './exchangeStatsLastClearingRule';
 
 export interface ExchangeStats {
   totalVolume: number;
@@ -12,5 +13,8 @@ export interface ExchangeStats {
   abortedBatches: number;
   activeOrders: number;
   /** @nullable */
-  lastClearingPrice: number | null;
+  lastBuyerPrice: number | null;
+  /** @nullable */
+  lastSellerPrice: number | null;
+  lastClearingRule: ExchangeStatsLastClearingRule;
 }

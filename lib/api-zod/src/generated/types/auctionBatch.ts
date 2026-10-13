@@ -5,6 +5,7 @@
  * API for the Fair Exchange batch-auction simulation
  * OpenAPI spec version: 0.1.0
  */
+import type { AuctionBatchClearingRule } from './auctionBatchClearingRule';
 import type { AuctionBatchStatus } from './auctionBatchStatus';
 
 export interface AuctionBatch {
@@ -17,9 +18,13 @@ export interface AuctionBatch {
   sharesReceived: number;
   quorumReached: boolean;
   submittedOrderCount: number;
+  clearingRule: AuctionBatchClearingRule;
   /** @nullable */
-  clearingPrice: number | null;
+  buyerPrice: number | null;
+  /** @nullable */
+  sellerPrice: number | null;
   matchedVolume: number;
+  mechanismSurplus: number;
   /** @nullable */
   outcome: string | null;
 }

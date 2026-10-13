@@ -307,7 +307,7 @@ export const getClearBatchUrl = (batchId: string,) => {
 }
 
 /**
- * @summary Reveal and clear the active batch using uniform pricing
+ * @summary Reveal and clear the active batch using the McAfee double auction
  */
 export const clearBatch = async (batchId: string, options?: Parameters<typeof customFetch>[1]): Promise<ExchangeSnapshot> => {
 
@@ -359,7 +359,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ClearBatchMutationVariables = {batchId: string}
 
     /**
- * @summary Reveal and clear the active batch using uniform pricing
+ * @summary Reveal and clear the active batch using the McAfee double auction
  */
 export const useClearBatch = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearBatch>>, TError,ClearBatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

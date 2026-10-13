@@ -7,6 +7,7 @@
  */
 
 export * from './auctionBatch';
+export * from './auctionBatchClearingRule';
 export * from './auctionBatchStatus';
 export * from './auditEvent';
 export * from './auditEventStatus';
@@ -16,6 +17,7 @@ export * from './committeeMemberStatus';
 export * from './errorResponse';
 export * from './exchangeSnapshot';
 export * from './exchangeStats';
+export * from './exchangeStatsLastClearingRule';
 export * from './healthStatus';
 export * from './market';
 export * from './order';

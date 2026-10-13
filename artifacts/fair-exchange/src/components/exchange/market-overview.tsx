@@ -5,7 +5,7 @@ import { Metric, StatusTag } from './ui-pieces';
 
 function price(value: number | null | undefined, quoteAsset: string) {
   if (value == null) return '—';
-  return `${quoteAsset} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${quoteAsset} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
 }
 
 export function MarketOverview({ snapshot }: { snapshot: ExchangeSnapshot }) {
@@ -56,7 +56,7 @@ export function MarketOverview({ snapshot }: { snapshot: ExchangeSnapshot }) {
               </span>
             </div>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              One price for every matched order. Orders stay sealed until the batch closes.
+              McAfee ranks unit bids and asks. Depending on the result, buyer and seller prices may differ; order terms stay hidden until reveal.
             </p>
           </div>
           <div className="flex gap-5 rounded-xl border border-[#deded3] bg-[#f6f5ed]/85 px-4 py-3">
@@ -82,8 +82,31 @@ export function MarketOverview({ snapshot }: { snapshot: ExchangeSnapshot }) {
         <div className="px-5 py-4 sm:px-6">
           <Metric label="Reference price" value={price(market.referencePrice, market.quoteAsset)} />
         </div>
-        <div className="px-5 py-4 sm:px-6">
-          <Metric label="Last clearing" value={price(stats.lastClearingPrice, market.quoteAsset)} detail="Uniform price" />
+        <div className="min-w-0 px-5 py-4 sm:px-6">
+          <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+            Last McAfee prices
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="min-w-0">
+              <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">Buyer pays</p>
+              <p className="mt-1 truncate font-display text-[17px] font-bold leading-none tracking-[-0.04em] text-foreground">
+                {price(stats.lastBuyerPrice, market.quoteAsset)}
+              </p>
+            </div>
+            <div className="min-w-0">
+              <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">Seller receives</p>
+              <p className="mt-1 truncate font-display text-[17px] font-bold leading-none tracking-[-0.04em] text-foreground">
+                {price(stats.lastSellerPrice, market.quoteAsset)}
+              </p>
+            </div>
+          </div>
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            {stats.lastClearingRule === 'trade-reduction'
+              ? 'Trade-reduction branch'
+              : stats.lastClearingRule === 'uniform'
+                ? 'Uniform-price branch'
+                : 'No trade'}
+          </p>
         </div>
         <div className="px-5 py-4 sm:px-6">
           <Metric label="Matched volume" value={batch.matchedVolume.toLocaleString()} detail={`${market.baseAsset} this batch`} />

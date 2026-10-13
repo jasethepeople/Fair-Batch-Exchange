@@ -4,7 +4,7 @@ import { SectionTitle, StatusTag } from './ui-pieces';
 
 function formatPrice(value: number | null, quote: string, settled: boolean, aborted: boolean) {
   if (value !== null) {
-    return `${quote} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `${quote} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
   }
   if (aborted) return 'Not settled';
   return settled ? 'No trade' : 'Pending reveal';
@@ -24,45 +24,71 @@ export function AuctionResult({
   const settled = batch.status === 'SETTLED';
   const aborted = batch.status === 'ABORTED';
   const canClear = batch.status === 'COLLECTING' && batch.quorumReached && batch.submittedOrderCount > 0 && !pending;
+  const ruleLabel = batch.clearingRule === 'trade-reduction'
+    ? 'Trade-reduction branch'
+    : batch.clearingRule === 'uniform'
+      ? 'Uniform-price branch'
+      : settled
+        ? 'No crossing trade'
+        : 'McAfee double auction';
+  const ruleTone = batch.clearingRule === 'trade-reduction' ? 'accent' : 'neutral';
 
   return (
     <section className="overflow-hidden rounded-2xl border border-[#2f5548] bg-[#213a35] text-[#f5f1e6] shadow-sm">
       <div className="flex items-center justify-between px-5 pt-5 sm:px-6">
         <SectionTitle
-          eyebrow="03 / Reveal & match"
-          title="Uniform-price result"
+          eyebrow={`03 / Reveal & ${batch.clearingRule === 'trade-reduction' ? 'trade reduction' : 'match'}`}
+          title="McAfee auction result"
           trailing={<Scale size={17} className="text-[#bdcbbd]" />}
         />
-        <StatusTag tone={settled ? 'good' : aborted ? 'bad' : 'neutral'}>
+        <StatusTag tone={settled ? 'good' : aborted ? 'bad' : ruleTone}>
           {settled ? 'Settled' : aborted ? 'Aborted' : 'Awaiting reveal'}
         </StatusTag>
       </div>
+      <p className="px-5 pb-3 font-mono text-[9px] uppercase tracking-[0.1em] text-[#afc0b4] sm:px-6">
+        {ruleLabel}
+      </p>
       <div className="mx-5 rounded-xl border border-white/10 bg-white/[0.055] p-4 sm:mx-6 sm:p-5">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#afc0b4]">Clearing price</p>
-            <p className="mt-2 font-display text-3xl font-extrabold tracking-[-0.06em] text-[#f7f3e7] sm:text-4xl">
-              {formatPrice(batch.clearingPrice, market.quoteAsset, settled, aborted)}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="min-w-0">
+            <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#afc0b4]">Buyer pays</p>
+            <p data-testid="text-buyer-price" className="mt-2 break-words font-display text-xl font-extrabold tracking-[-0.05em] text-[#f7f3e7] sm:text-2xl">
+              {formatPrice(batch.buyerPrice, market.quoteAsset, settled, aborted)}
             </p>
           </div>
-          <div className="text-left sm:text-right">
-            <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#afc0b4]">Matched volume</p>
-            <p className="mt-2 font-mono text-xl font-medium tabular-nums text-[#f7f3e7]">
-              {batch.matchedVolume.toLocaleString()} <span className="text-xs text-[#b7c7ba]">{market.baseAsset}</span>
+          <div className="min-w-0 border-l border-white/10 pl-3">
+            <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#afc0b4]">Seller receives</p>
+            <p data-testid="text-seller-price" className="mt-2 break-words font-display text-xl font-extrabold tracking-[-0.05em] text-[#f7f3e7] sm:text-2xl">
+              {formatPrice(batch.sellerPrice, market.quoteAsset, settled, aborted)}
             </p>
           </div>
         </div>
         <div className="my-4 flex items-center gap-2 text-[10px] text-[#bdcbbd]">
           <span className="h-px flex-1 bg-white/10" />
-          <span className="inline-flex items-center gap-1.5"><Sparkles size={12} /> one price for all matched orders</span>
+          <span className="inline-flex items-center gap-1.5"><Sparkles size={12} /> one price or McAfee trade reduction</span>
           <span className="h-px flex-1 bg-white/10" />
+        </div>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#afc0b4]">Matched volume</p>
+          <p data-testid="text-matched-volume" className="font-mono text-base font-medium tabular-nums text-[#f7f3e7]">
+            {batch.matchedVolume.toLocaleString()} <span className="text-xs text-[#b7c7ba]">{market.baseAsset}</span>
+          </p>
+        </div>
+        <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
+          <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#afc0b4]">Mechanism surplus</p>
+          <p className="font-mono text-xs tabular-nums text-[#d7e1d6]">
+            {market.quoteAsset} {batch.mechanismSurplus.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+          </p>
         </div>
         <p className="text-xs leading-relaxed text-[#bdcbbd]">
           {batch.outcome || (settled
-            ? 'Orders were matched at the same simulated clearing price.'
+            ? 'The batch settled using the displayed McAfee price branch.'
             : aborted
               ? 'The batch did not settle. No orders were matched.'
-              : 'Reveal and matching are available once the simulated committee quorum is reached.')}
+              : 'Reveal and McAfee matching are available once the simulated committee quorum is reached.')}
+        </p>
+        <p className="mt-3 border-t border-white/10 pt-3 text-[10px] leading-relaxed text-[#d1d9ce]">
+          McAfee’s classic truthfulness guarantee is for single-unit traders. This demo accepts divisible quantities and does not establish strategy-proof behavior.
         </p>
       </div>
       {!settled && !aborted && (
@@ -74,7 +100,7 @@ export function AuctionResult({
             onClick={onClear}
             className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#d97555] px-4 text-sm font-bold text-white transition hover:bg-[#e18464] disabled:bg-[#536b60] disabled:text-[#c4cec4] disabled:opacity-70"
           >
-            {pending ? 'Running simulated auction…' : 'Reveal & clear batch'}
+            {pending ? 'Running simulated auction…' : 'Reveal & run McAfee auction'}
             {!pending && <ArrowRight size={15} />}
           </button>
           {!canClear && (

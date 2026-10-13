@@ -1,6 +1,6 @@
 # Fair Exchange
 
-A simulation of a censorship-resistant batch-auction exchange designed to reduce velocity advantages through sealed orders, uniform pricing, and committee validation.
+A simulation of a censorship-resistant batch-auction exchange designed to reduce velocity advantages through sealed orders, McAfee double-auction clearing, and committee validation.
 
 ## Run & Operate
 
@@ -8,6 +8,8 @@ A simulation of a censorship-resistant batch-auction exchange designed to reduce
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
+- `pnpm --filter @workspace/api-server run test:mechanisms` — run clearing-rule and engine tests
+- `pnpm --filter @workspace/api-server run compare:mechanisms` — compare McAfee and max-volume policies
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
 
@@ -24,19 +26,24 @@ A simulation of a censorship-resistant batch-auction exchange designed to reduce
 
 - `artifacts/fair-exchange/` — browser exchange simulation
 - `artifacts/api-server/src/lib/exchange-engine.ts` — in-memory auction and committee simulation
+- `artifacts/api-server/src/lib/mcafee.ts` — active McAfee clearing rule
+- `artifacts/api-server/src/lib/max-volume.ts` — max-volume uniform-price comparison policy
+- `artifacts/api-server/scripts/compare-mechanisms.ts` — reproducible economic comparison
 - `artifacts/api-server/src/routes/exchange.ts` — exchange API routes
 - `lib/api-spec/openapi.yaml` — source of truth for API contracts
 - `artifacts/fair-exchange/README.md` — simulation limits, auction policy, failure assumptions, and future phases
+- `MECHANISM_COMPARISON.md` and `whitepaper-outline.md` — experiment summary and protocol-paper structure
 
 ## Architecture decisions
 
 - This first milestone is an in-memory simulation; it does not connect to a chain, custody assets, or perform threshold encryption.
 - The target product must remain non-custodial, with no privileged administrative keys or central operator.
-- Uniform-price auction tie-breaking is explicit and documented; changes require economic review because allocation policy affects incentives.
+- The active McAfee rule can use either a uniform price or trade reduction with separate buyer/seller prices. Changes to clearing policy require economic review because allocation and surplus affect incentives.
+- McAfee's classic truthfulness result is for single-unit traders. This demo accepts divisible orders and makes no strategy-proofness claim.
 
 ## Product
 
-Traders can inspect a demo batch, submit or cancel sealed limit orders, observe simulated committee quorum and reveal steps, clear the batch at a uniform price, and explore failure scenarios and the audit log.
+Traders can inspect a demo batch, submit or cancel sealed limit orders, observe simulated committee quorum and reveal steps, clear the batch under McAfee, and explore failure scenarios and the audit log.
 
 ## User preferences
 

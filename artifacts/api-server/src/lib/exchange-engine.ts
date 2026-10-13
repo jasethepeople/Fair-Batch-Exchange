@@ -11,9 +11,11 @@ import type {
   Order,
   OrderInput,
 } from "@workspace/api-zod";
+import { clearMcAfee } from "./mcafee";
 
 const UNIT_SCALE = 1_000_000;
 const MAX_AUDIT_EVENTS = 100;
+const MAX_BATCH_ORDERS = 5_000;
 const THRESHOLD = 3;
 const VALIDATOR_COUNT = 5;
 const SIMULATION_ONLY = true;
@@ -34,12 +36,6 @@ type EngineState = {
   committee: Committee;
   stats: ExchangeStats;
   auditEvents: AuditEvent[];
-};
-
-type Candidate = {
-  price: number;
-  volumeUnits: number;
-  imbalanceUnits: number;
 };
 
 function toUnits(quantity: number): number {
@@ -153,8 +149,11 @@ function createInitialState(
     sharesReceived: 4,
     quorumReached: true,
     submittedOrderCount: 6,
-    clearingPrice: null,
+    clearingRule: "none",
+    buyerPrice: null,
+    sellerPrice: null,
     matchedVolume: 0,
+    mechanismSurplus: 0,
     outcome: null,
   };
   const state: EngineState = {
@@ -180,162 +179,12 @@ const defaultStats: ExchangeStats = {
   settledBatches: 17,
   abortedBatches: 1,
   activeOrders: 0,
-  lastClearingPrice: 99.9,
+  lastBuyerPrice: 99.9,
+  lastSellerPrice: 99.9,
+  lastClearingRule: "uniform",
 };
 
 let state = createInitialState(18, defaultStats, []);
-
-function totalUnits(orders: PrivateOrder[]): number {
-  return orders.reduce((total, order) => total + toUnits(order.quantity), 0);
-}
-
-function findClearingCandidate(
-  orders: PrivateOrder[],
-  referencePrice: number,
-): Candidate | null {
-  const candidatePrices = [
-    ...new Set([
-      referencePrice,
-      ...orders.map((order) => Number(order.limitPrice.toFixed(8))),
-    ]),
-  ];
-
-  let best: Candidate | null = null;
-
-  for (const price of candidatePrices) {
-    const demand = totalUnits(
-      orders.filter((order) => order.side === "buy" && order.limitPrice >= price),
-    );
-    const supply = totalUnits(
-      orders.filter((order) => order.side === "sell" && order.limitPrice <= price),
-    );
-    const candidate: Candidate = {
-      price,
-      volumeUnits: Math.min(demand, supply),
-      imbalanceUnits: Math.abs(demand - supply),
-    };
-
-    if (!best || candidate.volumeUnits > best.volumeUnits) {
-      best = candidate;
-      continue;
-    }
-
-    if (candidate.volumeUnits < best.volumeUnits) {
-      continue;
-    }
-
-    if (candidate.imbalanceUnits < best.imbalanceUnits) {
-      best = candidate;
-      continue;
-    }
-
-    if (candidate.imbalanceUnits > best.imbalanceUnits) {
-      continue;
-    }
-
-    const distance = Math.abs(candidate.price - referencePrice);
-    const bestDistance = Math.abs(best.price - referencePrice);
-    if (distance < bestDistance || (distance === bestDistance && candidate.price < best.price)) {
-      best = candidate;
-    }
-  }
-
-  return best;
-}
-
-function allocateProRata(
-  orders: PrivateOrder[],
-  targetUnits: number,
-): Map<string, number> {
-  const allocations = new Map<string, number>();
-  const groupUnits = totalUnits(orders);
-
-  if (targetUnits <= 0 || groupUnits <= 0) {
-    return allocations;
-  }
-
-  let assignedUnits = 0;
-  const remainders = orders.map((order) => {
-    const exact = (toUnits(order.quantity) * targetUnits) / groupUnits;
-    const floor = Math.floor(exact);
-    allocations.set(order.id, floor);
-    assignedUnits += floor;
-    return {
-      id: order.id,
-      fractional: exact - floor,
-      commitment: order.commitment,
-    };
-  });
-
-  remainders.sort(
-    (left, right) =>
-      right.fractional - left.fractional ||
-      left.commitment.localeCompare(right.commitment),
-  );
-
-  for (let index = 0; index < targetUnits - assignedUnits; index += 1) {
-    const recipient = remainders[index];
-    if (recipient) {
-      allocations.set(recipient.id, (allocations.get(recipient.id) ?? 0) + 1);
-    }
-  }
-
-  return allocations;
-}
-
-function allocateSide(
-  orders: PrivateOrder[],
-  side: Side,
-  clearingPrice: number,
-  targetUnits: number,
-): Map<string, number> {
-  const eligible = orders
-    .filter((order) =>
-      side === "buy"
-        ? order.side === "buy" && order.limitPrice >= clearingPrice
-        : order.side === "sell" && order.limitPrice <= clearingPrice,
-    )
-    .sort((left, right) =>
-      side === "buy"
-        ? right.limitPrice - left.limitPrice
-        : left.limitPrice - right.limitPrice,
-    );
-
-  const byPrice = new Map<number, PrivateOrder[]>();
-  for (const order of eligible) {
-    const priceGroup = byPrice.get(order.limitPrice) ?? [];
-    priceGroup.push(order);
-    byPrice.set(order.limitPrice, priceGroup);
-  }
-
-  const priceGroups = [...byPrice.entries()].sort(([left], [right]) =>
-    side === "buy" ? right - left : left - right,
-  );
-  const allocations = new Map<string, number>();
-  let remainingUnits = targetUnits;
-
-  for (const [, group] of priceGroups) {
-    if (remainingUnits <= 0) {
-      break;
-    }
-
-    const groupUnits = totalUnits(group);
-    if (groupUnits <= remainingUnits) {
-      for (const order of group) {
-        allocations.set(order.id, toUnits(order.quantity));
-      }
-      remainingUnits -= groupUnits;
-      continue;
-    }
-
-    for (const [orderId, quantityUnits] of allocateProRata(group, remainingUnits)) {
-      allocations.set(orderId, quantityUnits);
-    }
-    remainingUnits = 0;
-  }
-
-  return allocations;
-}
 
 function revealOrder(order: PrivateOrder): Order {
   const { salt: _salt, ...publicOrder } = order;
@@ -408,6 +257,9 @@ export function submitSealedOrder(input: OrderInput): Order {
   if (Date.now() >= state.batch.cutoffAt.getTime()) {
     throw new Error("The order window has closed. Clear or reset the batch.");
   }
+  if (state.batch.submittedOrderCount >= MAX_BATCH_ORDERS) {
+    throw new Error(`This demo batch is limited to ${MAX_BATCH_ORDERS} submitted orders.`);
+  }
 
   const order = makeOrder(
     state.batch.id,
@@ -469,17 +321,32 @@ export function clearActiveBatch(batchId: string): ExchangeSnapshot {
 
   const liveOrders = state.orders.filter((order) => order.status === "SEALED");
   state.batch.status = "CLEARING";
-  const candidate = findClearingCandidate(liveOrders, state.market.referencePrice);
-  const matchedUnits = candidate?.volumeUnits ?? 0;
+  const result = clearMcAfee(
+    liveOrders.map((order) => ({
+      id: order.id,
+      side: order.side,
+      units: toUnits(order.quantity),
+      price: order.limitPrice,
+    })),
+  );
+  const matchedUnits = result.tradedUnits;
+  const mechanismSurplus = Number((result.mechanismSurplus / UNIT_SCALE).toFixed(6));
 
-  if (!candidate || matchedUnits === 0) {
+  state.batch.clearingRule = result.rule;
+  state.batch.buyerPrice = result.buyerPrice;
+  state.batch.sellerPrice = result.sellerPrice;
+  state.batch.matchedVolume = fromUnits(matchedUnits);
+  state.batch.mechanismSurplus = mechanismSurplus;
+
+  if (matchedUnits === 0) {
     for (const order of liveOrders) {
       order.status = "UNFILLED";
     }
-    state.batch.clearingPrice = null;
-    state.batch.matchedVolume = 0;
     state.batch.outcome =
-      "No compatible buy and sell orders crossed. No trade was settled.";
+      "The McAfee crossing rule found no trade to settle. In particular, a single crossing pair is reduced to zero trades.";
+    state.stats.lastBuyerPrice = null;
+    state.stats.lastSellerPrice = null;
+    state.stats.lastClearingRule = "none";
     addAuditEvent(
       state,
       "Batch settled with no trade",
@@ -487,22 +354,8 @@ export function clearActiveBatch(batchId: string): ExchangeSnapshot {
       "WARNING",
     );
   } else {
-    const buyAllocations = allocateSide(
-      liveOrders,
-      "buy",
-      candidate.price,
-      matchedUnits,
-    );
-    const sellAllocations = allocateSide(
-      liveOrders,
-      "sell",
-      candidate.price,
-      matchedUnits,
-    );
-
     for (const order of liveOrders) {
-      const fillUnits =
-        buyAllocations.get(order.id) ?? sellAllocations.get(order.id) ?? 0;
+      const fillUnits = result.fills.get(order.id) ?? 0;
       order.filledQuantity = fromUnits(fillUnits);
       if (fillUnits === 0) {
         order.status = "UNFILLED";
@@ -513,16 +366,28 @@ export function clearActiveBatch(batchId: string): ExchangeSnapshot {
       }
     }
 
-    state.batch.clearingPrice = candidate.price;
-    state.batch.matchedVolume = fromUnits(matchedUnits);
+    const buyerPrice = result.buyerPrice as number;
+    const sellerPrice = result.sellerPrice as number;
+    const priceText = (price: number) =>
+      `${state.market.quoteAsset} ${price.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4,
+      })}`;
     state.batch.outcome =
-      "Uniform-price result: maximum executable volume; then lowest imbalance; then closest to the reference price; then lower price. Marginal orders at each price level share pro rata.";
+      result.rule === "uniform"
+        ? `McAfee uniform-price branch: ${fromUnits(matchedUnits)} ${state.market.baseAsset} traded. Buyers pay ${priceText(buyerPrice)} and sellers receive ${priceText(sellerPrice)}.`
+        : `McAfee trade-reduction branch: ${fromUnits(matchedUnits)} ${state.market.baseAsset} traded. Buyers pay ${priceText(buyerPrice)}; sellers receive ${priceText(sellerPrice)}. The mechanism retains ${state.market.quoteAsset} ${mechanismSurplus.toFixed(6)} from the spread.`;
     state.stats.totalVolume += fromUnits(matchedUnits);
-    state.stats.lastClearingPrice = candidate.price;
+    state.stats.lastBuyerPrice = buyerPrice;
+    state.stats.lastSellerPrice = sellerPrice;
+    state.stats.lastClearingRule = result.rule;
+    const event = result.rule === "uniform"
+      ? "McAfee uniform-price batch settled"
+      : "McAfee trade-reduction batch settled";
     addAuditEvent(
       state,
-      "Uniform-price batch settled",
-      `${fromUnits(matchedUnits)} ETH cleared at $${candidate.price.toFixed(2)} per ETH. All fills in the batch use the same price.`,
+      event,
+      `${fromUnits(matchedUnits)} ${state.market.baseAsset} traded; buyer price ${priceText(buyerPrice)}, seller price ${priceText(sellerPrice)}, mechanism surplus ${state.market.quoteAsset} ${mechanismSurplus.toFixed(6)}.`,
       "SUCCESS",
     );
   }
@@ -546,8 +411,11 @@ function abortCurrentBatch(
   status: AuditEventStatus,
 ): ExchangeSnapshot {
   state.batch.status = "ABORTED";
-  state.batch.clearingPrice = null;
+  state.batch.clearingRule = "none";
+  state.batch.buyerPrice = null;
+  state.batch.sellerPrice = null;
   state.batch.matchedVolume = 0;
+  state.batch.mechanismSurplus = 0;
   state.batch.outcome = reason;
   updateOrderStatusesAfterAbort();
   state.stats.abortedBatches += 1;

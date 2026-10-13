@@ -37,8 +37,11 @@ export const GetExchangeResponse = zod.object({
   "sharesReceived": zod.number().int(),
   "quorumReached": zod.boolean(),
   "submittedOrderCount": zod.number().int(),
-  "clearingPrice": zod.number().nullable(),
+  "clearingRule": zod.enum(['none', 'uniform', 'trade-reduction']),
+  "buyerPrice": zod.number().nullable(),
+  "sellerPrice": zod.number().nullable(),
   "matchedVolume": zod.number(),
+  "mechanismSurplus": zod.number(),
   "outcome": zod.string().nullable()
 }),
   "orders": zod.array(zod.object({
@@ -72,7 +75,9 @@ export const GetExchangeResponse = zod.object({
   "settledBatches": zod.number().int(),
   "abortedBatches": zod.number().int(),
   "activeOrders": zod.number().int(),
-  "lastClearingPrice": zod.number().nullable()
+  "lastBuyerPrice": zod.number().nullable(),
+  "lastSellerPrice": zod.number().nullable(),
+  "lastClearingRule": zod.enum(['none', 'uniform', 'trade-reduction'])
 }),
   "auditEvents": zod.array(zod.object({
   "id": zod.string(),
@@ -119,7 +124,7 @@ export const SubmitOrderResponse = zod.object({
 
 
 /**
- * @summary Reveal and clear the active batch using uniform pricing
+ * @summary Reveal and clear the active batch using the McAfee double auction
  */
 export const ClearBatchParams = zod.object({
   "batchId": zod.coerce.string()
@@ -142,8 +147,11 @@ export const ClearBatchResponse = zod.object({
   "sharesReceived": zod.number().int(),
   "quorumReached": zod.boolean(),
   "submittedOrderCount": zod.number().int(),
-  "clearingPrice": zod.number().nullable(),
+  "clearingRule": zod.enum(['none', 'uniform', 'trade-reduction']),
+  "buyerPrice": zod.number().nullable(),
+  "sellerPrice": zod.number().nullable(),
   "matchedVolume": zod.number(),
+  "mechanismSurplus": zod.number(),
   "outcome": zod.string().nullable()
 }),
   "orders": zod.array(zod.object({
@@ -177,7 +185,9 @@ export const ClearBatchResponse = zod.object({
   "settledBatches": zod.number().int(),
   "abortedBatches": zod.number().int(),
   "activeOrders": zod.number().int(),
-  "lastClearingPrice": zod.number().nullable()
+  "lastBuyerPrice": zod.number().nullable(),
+  "lastSellerPrice": zod.number().nullable(),
+  "lastClearingRule": zod.enum(['none', 'uniform', 'trade-reduction'])
 }),
   "auditEvents": zod.array(zod.object({
   "id": zod.string(),
@@ -214,8 +224,11 @@ export const RunExchangeScenarioResponse = zod.object({
   "sharesReceived": zod.number().int(),
   "quorumReached": zod.boolean(),
   "submittedOrderCount": zod.number().int(),
-  "clearingPrice": zod.number().nullable(),
+  "clearingRule": zod.enum(['none', 'uniform', 'trade-reduction']),
+  "buyerPrice": zod.number().nullable(),
+  "sellerPrice": zod.number().nullable(),
   "matchedVolume": zod.number(),
+  "mechanismSurplus": zod.number(),
   "outcome": zod.string().nullable()
 }),
   "orders": zod.array(zod.object({
@@ -249,7 +262,9 @@ export const RunExchangeScenarioResponse = zod.object({
   "settledBatches": zod.number().int(),
   "abortedBatches": zod.number().int(),
   "activeOrders": zod.number().int(),
-  "lastClearingPrice": zod.number().nullable()
+  "lastBuyerPrice": zod.number().nullable(),
+  "lastSellerPrice": zod.number().nullable(),
+  "lastClearingRule": zod.enum(['none', 'uniform', 'trade-reduction'])
 }),
   "auditEvents": zod.array(zod.object({
   "id": zod.string(),
