@@ -1,0 +1,565 @@
+From 4e381cb74af8b8085ee1f49536505204453cea1e Mon Sep 17 00:00:00 2001
+From: dev <dev@example.com>
+Date: Tue, 13 Oct 2026 07:48:39 +0000
+Subject: [PATCH] Add McAfee double-auction module, tests, mechanism
+ comparison, and user guide
+
+---
+ MECHANISM_COMPARISON.md                       |  36 ++++
+ USER_GUIDE.md                                 |  51 +++++
+ .../api-server/scripts/compare-mechanisms.ts  | 153 +++++++++++++++
+ artifacts/api-server/src/lib/mcafee.test.ts   |  96 ++++++++++
+ artifacts/api-server/src/lib/mcafee.ts        | 177 ++++++++++++++++++
+ 5 files changed, 513 insertions(+)
+ create mode 100644 MECHANISM_COMPARISON.md
+ create mode 100644 USER_GUIDE.md
+ create mode 100644 artifacts/api-server/scripts/compare-mechanisms.ts
+ create mode 100644 artifacts/api-server/src/lib/mcafee.test.ts
+ create mode 100644 artifacts/api-server/src/lib/mcafee.ts
+
+diff --git a/MECHANISM_COMPARISON.md b/MECHANISM_COMPARISON.md
+new file mode 100644
+index 0000000..3933b71
+--- /dev/null
++++ b/MECHANISM_COMPARISON.md
+@@ -0,0 +1,36 @@
++# Max-volume uniform price vs McAfee double auction
++
++Both mechanisms were run on identical order sets, using the real engine for the max-volume rule. Seeded, reproducible: `npx tsx scripts/compare-mechanisms.ts` (add `DEPTH=60` for deep books).
++
++## Summary
++
++- **Efficiency:** Both trade the same volume and realize the same gains from trade (ratio 1.0), since McAfee drops at most one micro-unit.
++- **Who gets the gains:** Under McAfee's trade-reduction rule the mechanism keeps the buy/sell spread. That was about **25% of total gains in thin books** and **10% in deep books**.
++- **Manipulation:** McAfee's truthfulness holds for single-unit traders. With divisible orders it does not hold here. Under-bidding paid off far more often under McAfee than under the max-volume rule.
++
++## Results: can one buyer profit by under-bidding their true value?
++
++Share of scenarios where shading the limit price (0 to 4.0 below true value) beat bidding truthfully, and the average gain.
++
++| Books | Order size | Max-volume: shading pays | McAfee: shading pays | Avg gain (max-vol / McAfee) |
++|---|---|---|---|---|
++| Thin (7-14 orders) | 0.05 | 0.7% | 34% | 0.0001 / 0.0124 |
++| Thin | 4 | 23.3% | 39.3% | 0.267 / 0.519 |
++| Deep (65 orders) | 0.05 | 1% | 51% | 0 / 0.0073 |
++| Deep | 1 | 7% | 46% | 0.0117 / 0.1119 |
++
++Average truthful utility was also lower under McAfee (for example 1.66 vs 1.37 for the large thin-book buyer), because buyers pay the marginal bid rather than a midpoint and the spread goes to the mechanism.
++
++## Why
++
++McAfee's proof treats every unit as a separate single-unit trader. A divisible order is many units at one price, and its marginal units can set the price it pays. That gives even small orders room to gain by shading.
++
++## Limits of this test
++
++- Synthetic random books, a fixed reference price, one strategy family (buyer price shading), and other traders who don't react. This is evidence, not proof.
++- Quantities and price tick sizes affect the numbers.
++- Sybil splitting, collusion, and sell-side manipulation were not tested.
++
++## Implication for the design
++
++Max-volume uniform pricing looks like the better default for divisible orders. McAfee remains useful as a reference, or if orders are restricted to fixed single units. Large traders can still move the max-volume price, so size limits or other mitigations are an open question for the paper.
+diff --git a/USER_GUIDE.md b/USER_GUIDE.md
+new file mode 100644
+index 0000000..3556c12
+--- /dev/null
++++ b/USER_GUIDE.md
+@@ -0,0 +1,51 @@
++# Fair Exchange: User Guide
++
++Fair Exchange is a **simulation** of a batch-auction exchange. It does not touch real money, wallets, or a blockchain. Everything resets when the API server restarts.
++
++## Run it
++
++Commands from `replit.md`:
++
++```
++pnpm install
++pnpm --filter @workspace/api-server run dev        # API (port 5000)
++pnpm --filter @workspace/fair-exchange run dev     # web app
++```
++
++`replit.md` lists `DATABASE_URL` as a required env var. The simulation itself keeps its state in memory.
++
++## Use it
++
++1. **Place a sealed order.** Pick buy or sell, enter a quantity and a limit price (the worst price you'll accept), and submit.
++2. **Watch the Sealed order queue.** Your order appears with a commitment code. Its terms stay hidden from the public view until the batch is revealed.
++3. **Cancel if you change your mind.** You can cancel your own sealed orders until the batch is cleared.
++4. **Clear the batch** from the result card. The button is enabled once the committee has enough shares (3 of 5) and at least one order exists.
++5. **Read the result.** Everyone in the batch trades at the same clearing price. Order terms are revealed after clearing.
++
++## Reading results
++
++- **Clearing price:** one price for every fill in the batch.
++- **Matched volume:** total quantity that traded.
++- **Order status:** FILLED, PARTIALLY_FILLED, UNFILLED, CANCELLED, or ABORTED.
++- **Partial fills:** orders at the edge price level share the remaining quantity pro rata.
++- **Committee shares:** shows how many simulated validators released their share. Below the threshold, the batch cannot be revealed.
++- **Audit log:** a running record of what happened.
++
++## Failure lab
++
++Try **Quorum failure**, **Reveal timeout**, or **Invalid order** to see the batch abort with no trade and no terms revealed. **Reset simulation** opens a fresh batch.
++
++## What is not real
++
++Orders are not encrypted (the server holds plaintext), there are no wallet signatures or asset transfers, and the committee is simulated. Don't treat any indicator in the app as a security claim.
++
++## For developers
++
++```
++cd artifacts/api-server
++npx tsx --test src/lib/mcafee.test.ts        # unit + randomized tests
++npx tsx scripts/compare-mechanisms.ts        # max-volume vs McAfee comparison
++DEPTH=60 npx tsx scripts/compare-mechanisms.ts   # same, with deep order books
++```
++
++`src/lib/mcafee.ts` is a standalone McAfee double-auction clearer. It is not wired into the API or UI yet. See `MECHANISM_COMPARISON.md` for results.
+diff --git a/artifacts/api-server/scripts/compare-mechanisms.ts b/artifacts/api-server/scripts/compare-mechanisms.ts
+new file mode 100644
+index 0000000..e8dbd00
+--- /dev/null
++++ b/artifacts/api-server/scripts/compare-mechanisms.ts
+@@ -0,0 +1,153 @@
++/**
++ * Compares the engine's max-volume uniform-price rule with the McAfee double
++ * auction on identical order sets.
++ *
++ * Run:  npx tsx scripts/compare-mechanisms.ts
++ *
++ * Experiment 1 - efficiency: realized gains from trade and volume.
++ * Experiment 2 - manipulation: how much can one trader gain by shading a limit
++ *   price, for a small order versus a large one?
++ */
++import {
++  cancelSealedOrder,
++  clearActiveBatch,
++  getExchangeSnapshot,
++  runExchangeScenario,
++  submitSealedOrder,
++} from "../src/lib/exchange-engine";
++import { clearMcAfee, type McOrder } from "../src/lib/mcafee";
++
++const U = 1_000_000;
++let seed = 2026;
++const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
++const round = (x: number, d: number) => Math.round(x * 10 ** d) / 10 ** d;
++
++type Spec = { side: "buy" | "sell"; quantity: number; limitPrice: number };
++
++// DEPTH=0 (default): thin books, 2-8 extra orders of 0.1-2.1 units.
++// DEPTH=n: deep books, n extra orders of 0.02-0.22 units.
++const DEPTH = Number(process.env.DEPTH ?? 0);
++
++function randomOthers(): Spec[] {
++  const n = DEPTH > 0 ? DEPTH : 2 + Math.floor(rnd() * 7);
++  return Array.from({ length: n }, () => ({
++    side: rnd() < 0.5 ? ("buy" as const) : ("sell" as const),
++    quantity: DEPTH > 0 ? round(0.02 + rnd() * 0.2, 2) : round(0.1 + rnd() * 2, 2),
++    limitPrice: round(95 + rnd() * 10, 2),
++  }));
++}
++
++type Outcome = {
++  engine: { fill: number; price: number | null; welfare: number; volume: number };
++  mcafee: { fill: number; price: number | null; welfare: number; volume: number; surplus: number };
++};
++
++/** Run one batch through both mechanisms. `mineId` is the order we track. */
++function runBoth(specs: Spec[], mine?: Spec): Outcome & { mineFillEngine: number; mineFillMc: number } {
++  runExchangeScenario("reset");
++  for (const o of getExchangeSnapshot().orders) if (o.isMine) cancelSealedOrder(o.id);
++  for (const s of specs) submitSealedOrder(s as never);
++  const mineId = mine ? submitSealedOrder(mine as never).id : null;
++  const snap = clearActiveBatch(getExchangeSnapshot().batch.id);
++
++  const live = snap.orders.filter((o) => o.side && o.limitPrice !== null && o.quantity !== null);
++  const mc: McOrder[] = live.map((o) => ({
++    id: o.id,
++    side: o.side as "buy" | "sell",
++    units: Math.round((o.quantity as number) * U),
++    price: o.limitPrice as number,
++  }));
++  const r = clearMcAfee(mc);
++
++  let engineWelfare = 0;
++  for (const o of live) {
++    const sign = o.side === "buy" ? 1 : -1;
++    engineWelfare += sign * o.filledQuantity * (o.limitPrice as number);
++  }
++  let mcWelfare = 0;
++  for (const o of mc) {
++    const sign = o.side === "buy" ? 1 : -1;
++    mcWelfare += sign * ((r.fills.get(o.id) ?? 0) / U) * o.price;
++  }
++
++  const mineEngine = snap.orders.find((o) => o.id === mineId);
++  return {
++    engine: {
++      fill: mineEngine?.filledQuantity ?? 0,
++      price: snap.batch.clearingPrice ?? null,
++      welfare: engineWelfare,
++      volume: snap.batch.matchedVolume,
++    },
++    mcafee: {
++      fill: (r.fills.get(mineId ?? "") ?? 0) / U,
++      price: r.buyerPrice,
++      welfare: mcWelfare,
++      volume: r.tradedUnits / U,
++      surplus: r.mechanismSurplus / U,
++    },
++    mineFillEngine: mineEngine?.filledQuantity ?? 0,
++    mineFillMc: (r.fills.get(mineId ?? "") ?? 0) / U,
++  };
++}
++
++// ---------------------------------------------------------------- Experiment 1
++{
++  const N = DEPTH > 0 ? 300 : 2000;
++  let volE = 0, volM = 0, welE = 0, welM = 0, surplus = 0, reduction = 0, uniform = 0;
++  for (let i = 0; i < N; i += 1) {
++    const out = runBoth(randomOthers());
++    volE += out.engine.volume;
++    volM += out.mcafee.volume;
++    welE += out.engine.welfare;
++    welM += out.mcafee.welfare;
++    surplus += out.mcafee.surplus;
++    // classify the McAfee rule by whether buyer and seller prices differ
++  }
++  console.log("EXPERIMENT 1: efficiency over", N, "random batches");
++  console.log({
++    volumeRatio: round(volM / volE, 6),
++    welfareRatio: round(welM / welE, 6),
++    mechanismSurplusPctOfWelfare: round((surplus / welM) * 100, 4),
++  });
++  void reduction; void uniform;
++}
++
++// ---------------------------------------------------------------- Experiment 2
++function manipulation(quantity: number, scenarios: number) {
++  const shades = Array.from({ length: 41 }, (_, i) => round(i * 0.1, 1)); // 0.0 .. 4.0
++  let gainE = 0, gainM = 0, profitableE = 0, profitableM = 0;
++  let utilE0 = 0, utilM0 = 0;
++  for (let s = 0; s < scenarios; s += 1) {
++    const others = randomOthers();
++    const value = round(98 + rnd() * 5, 2); // true value of the strategic buyer
++    let bestE = -Infinity, bestM = -Infinity, truthE = 0, truthM = 0;
++    for (const d of shades) {
++      const out = runBoth(others, { side: "buy", quantity, limitPrice: round(value - d, 2) });
++      const uE = out.mineFillEngine * (value - (out.engine.price ?? value));
++      const uM = out.mineFillMc * (value - (out.mcafee.price ?? value));
++      if (d === 0) { truthE = uE; truthM = uM; }
++      bestE = Math.max(bestE, uE);
++      bestM = Math.max(bestM, uM);
++    }
++    gainE += bestE - truthE;
++    gainM += bestM - truthM;
++    utilE0 += truthE;
++    utilM0 += truthM;
++    if (bestE - truthE > 1e-9) profitableE += 1;
++    if (bestM - truthM > 1e-9) profitableM += 1;
++  }
++  return {
++    orderSize: quantity,
++    scenarios,
++    avgTruthfulUtility: { maxVolume: round(utilE0 / scenarios, 4), mcAfee: round(utilM0 / scenarios, 4) },
++    avgGainFromShading: { maxVolume: round(gainE / scenarios, 4), mcAfee: round(gainM / scenarios, 4) },
++    pctScenariosShadingPays: {
++      maxVolume: round((profitableE / scenarios) * 100, 1),
++      mcAfee: round((profitableM / scenarios) * 100, 1),
++    },
++  };
++}
++
++console.log("\nEXPERIMENT 2: can one buyer profit by under-bidding their true value?");
++console.log(JSON.stringify(manipulation(0.05, 100), null, 2));
++console.log(JSON.stringify(manipulation(DEPTH > 0 ? 1 : 4, 100), null, 2));
+diff --git a/artifacts/api-server/src/lib/mcafee.test.ts b/artifacts/api-server/src/lib/mcafee.test.ts
+new file mode 100644
+index 0000000..ce3af44
+--- /dev/null
++++ b/artifacts/api-server/src/lib/mcafee.test.ts
+@@ -0,0 +1,96 @@
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { clearMcAfee, type McOrder } from "./mcafee";
++
++const U = 1; // one unit per order keeps the textbook examples readable
++
++function book(bids: number[], asks: number[]): McOrder[] {
++  return [
++    ...bids.map((price, i) => ({ id: `b${i}`, side: "buy" as const, units: U, price })),
++    ...asks.map((price, i) => ({ id: `s${i}`, side: "sell" as const, units: U, price })),
++  ];
++}
++
++test("textbook example: uniform price at the midpoint", () => {
++  // bids 10,8,6,4 / asks 1,3,5,7 -> k=3, p=(4+7)/2=5.5, ask_3=5 <= 5.5 <= bid_3=6
++  const r = clearMcAfee(book([10, 8, 6, 4], [1, 3, 5, 7]));
++  assert.equal(r.rule, "uniform");
++  assert.equal(r.tradedUnits, 3);
++  assert.equal(r.buyerPrice, 5.5);
++  assert.equal(r.sellerPrice, 5.5);
++  assert.equal(r.mechanismSurplus, 0);
++});
++
++test("trade reduction when the midpoint falls outside the marginal pair", () => {
++  // bids 10,9,8,7 / asks 1,2,3,9.5 -> k=3, p=8.25 > bid_3=8 -> trade 2 units
++  const r = clearMcAfee(book([10, 9, 8, 7], [1, 2, 3, 9.5]));
++  assert.equal(r.rule, "trade-reduction");
++  assert.equal(r.tradedUnits, 2);
++  assert.equal(r.buyerPrice, 8);
++  assert.equal(r.sellerPrice, 3);
++  assert.equal(r.mechanismSurplus, 10);
++  assert.equal(r.fills.get("b2"), undefined); // the marginal bid is dropped
++  assert.equal(r.fills.get("s2"), undefined); // and so is the marginal ask
++});
++
++test("trade reduction when there is no (k+1)-th unit on one side", () => {
++  const r = clearMcAfee(book([10, 9, 8], [1, 2, 3]));
++  assert.equal(r.rule, "trade-reduction");
++  assert.equal(r.tradedUnits, 2);
++  assert.equal(r.buyerPrice, 8);
++  assert.equal(r.sellerPrice, 3);
++});
++
++test("no trade when nothing crosses, or a side is empty", () => {
++  assert.equal(clearMcAfee(book([5, 4], [6, 7])).tradedUnits, 0);
++  assert.equal(clearMcAfee(book([5, 4], [])).tradedUnits, 0);
++  assert.equal(clearMcAfee([]).rule, "none");
++});
++
++test("a single crossing pair is dropped entirely (cost of truthfulness)", () => {
++  assert.equal(clearMcAfee(book([10], [1])).tradedUnits, 0);
++});
++
++test("results do not depend on input order", () => {
++  const orders = book([10, 8, 6, 4], [1, 3, 5, 7]);
++  const a = clearMcAfee(orders);
++  const b = clearMcAfee([...orders].reverse());
++  assert.equal(a.buyerPrice, b.buyerPrice);
++  assert.deepEqual([...a.fills].sort(), [...b.fills].sort());
++});
++
++test("randomized invariants", () => {
++  let seed = 7;
++  const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
++  for (let run = 0; run < 3000; run += 1) {
++    const orders: McOrder[] = [];
++    const n = Math.floor(rnd() * 14);
++    for (let i = 0; i < n; i += 1) {
++      orders.push({
++        id: `o${i}`,
++        side: rnd() < 0.5 ? "buy" : "sell",
++        units: 1 + Math.floor(rnd() * 5_000_000),
++        price: 90 + Math.floor(rnd() * 200) / 10,
++      });
++    }
++    const r = clearMcAfee(orders);
++    let buyFill = 0;
++    let sellFill = 0;
++    for (const order of orders) {
++      const fill = r.fills.get(order.id) ?? 0;
++      assert.ok(fill >= 0 && fill <= order.units, "no over-fill");
++      if (fill > 0) {
++        if (order.side === "buy") {
++          buyFill += fill;
++          assert.ok(order.price >= (r.buyerPrice as number), "buyer never pays above limit");
++        } else {
++          sellFill += fill;
++          assert.ok(order.price <= (r.sellerPrice as number), "seller never paid below limit");
++        }
++      }
++    }
++    assert.equal(buyFill, r.tradedUnits);
++    assert.equal(sellFill, r.tradedUnits);
++    assert.ok(r.mechanismSurplus >= 0, "weakly budget balanced");
++  }
++});
+diff --git a/artifacts/api-server/src/lib/mcafee.ts b/artifacts/api-server/src/lib/mcafee.ts
+new file mode 100644
+index 0000000..f06afb0
+--- /dev/null
++++ b/artifacts/api-server/src/lib/mcafee.ts
+@@ -0,0 +1,177 @@
++/**
++ * McAfee (1992) double auction, adapted to divisible quantities.
++ *
++ * Every order is treated as `units` identical one-unit orders at its limit
++ * price (integer micro-units, like the main engine). Units are ranked by price
++ * priority: bids high-to-low, asks low-to-high.
++ *
++ *   1. k = the largest unit index where the k-th bid >= the k-th ask.
++ *   2. p = midpoint of the (k+1)-th bid and (k+1)-th ask (if both exist).
++ *   3. If ask_k <= p <= bid_k, trade k units at the single price p.
++ *      Otherwise trade k-1 units: buyers pay bid_k, sellers receive ask_k,
++ *      and the spread is kept by the mechanism (trade reduction).
++ *
++ * Pure and deterministic: no clock, no randomness, no I/O.
++ * Orders at the same price are ordered by id so results are reproducible.
++ *
++ * Caveat: McAfee's truthfulness proof covers single-unit traders. A trader who
++ * holds several units around the margin can still influence the price.
++ * See scripts/compare-mechanisms.ts for measurements.
++ */
++
++export type McSide = "buy" | "sell";
++
++export type McOrder = {
++  id: string;
++  side: McSide;
++  /** Integer micro-units. */
++  units: number;
++  /** Limit price (any consistent scale). */
++  price: number;
++};
++
++export type McRule = "none" | "uniform" | "trade-reduction";
++
++export type McResult = {
++  rule: McRule;
++  tradedUnits: number;
++  /** Price every buyer pays per unit, or null when nothing trades. */
++  buyerPrice: number | null;
++  /** Price every seller receives per unit, or null when nothing trades. */
++  sellerPrice: number | null;
++  /** Units filled per order id (orders with no fill are omitted). */
++  fills: Map<string, number>;
++  /** (buyerPrice - sellerPrice) * tradedUnits; zero under the uniform rule. */
++  mechanismSurplus: number;
++};
++
++type Ranked = { sorted: McOrder[]; cumulative: number[]; total: number };
++
++function rank(orders: McOrder[], side: McSide): Ranked {
++  const sorted = orders
++    .filter((order) => order.side === side && order.units > 0)
++    .sort(
++      (a, b) =>
++        (side === "buy" ? b.price - a.price : a.price - b.price) ||
++        a.id.localeCompare(b.id),
++    );
++  const cumulative: number[] = [];
++  let running = 0;
++  for (const order of sorted) {
++    running += order.units;
++    cumulative.push(running);
++  }
++  return { sorted, cumulative, total: running };
++}
++
++/** Price of the j-th unit (1-based) in a ranked book, or null past the end. */
++function priceAtUnit(book: Ranked, j: number): number | null {
++  if (j < 1 || j > book.total) return null;
++  for (let i = 0; i < book.cumulative.length; i += 1) {
++    if (book.cumulative[i] >= j) return book.sorted[i].price;
++  }
++  return null;
++}
++
++/** Fill the best-priced `target` units; split the marginal price level pro rata. */
++function allocate(book: Ranked, target: number): Map<string, number> {
++  const fills = new Map<string, number>();
++  if (target <= 0) return fills;
++
++  const groups: McOrder[][] = [];
++  for (const order of book.sorted) {
++    const last = groups[groups.length - 1];
++    if (last && last[0].price === order.price) last.push(order);
++    else groups.push([order]);
++  }
++
++  let remaining = target;
++  for (const group of groups) {
++    if (remaining <= 0) break;
++    const groupUnits = group.reduce((sum, order) => sum + order.units, 0);
++    if (groupUnits <= remaining) {
++      for (const order of group) fills.set(order.id, order.units);
++      remaining -= groupUnits;
++      continue;
++    }
++
++    let assigned = 0;
++    const parts = group.map((order) => {
++      const exact = (order.units * remaining) / groupUnits;
++      const floor = Math.floor(exact);
++      fills.set(order.id, floor);
++      assigned += floor;
++      return { id: order.id, fraction: exact - floor };
++    });
++    parts.sort((a, b) => b.fraction - a.fraction || a.id.localeCompare(b.id));
++    for (let i = 0; i < remaining - assigned; i += 1) {
++      fills.set(parts[i].id, (fills.get(parts[i].id) ?? 0) + 1);
++    }
++    remaining = 0;
++  }
++
++  for (const [id, units] of fills) if (units === 0) fills.delete(id);
++  return fills;
++}
++
++const NO_TRADE: McResult = {
++  rule: "none",
++  tradedUnits: 0,
++  buyerPrice: null,
++  sellerPrice: null,
++  fills: new Map(),
++  mechanismSurplus: 0,
++};
++
++export function clearMcAfee(orders: McOrder[]): McResult {
++  const bids = rank(orders, "buy");
++  const asks = rank(orders, "sell");
++  const reach = Math.min(bids.total, asks.total);
++  const crosses = (j: number) =>
++    (priceAtUnit(bids, j) as number) >= (priceAtUnit(asks, j) as number);
++
++  if (reach === 0 || !crosses(1)) return { ...NO_TRADE, fills: new Map() };
++
++  // The spread between the j-th bid and j-th ask only shrinks as j grows,
++  // so the largest crossing j can be found by binary search.
++  let lo = 1;
++  let hi = reach;
++  while (lo < hi) {
++    const mid = Math.ceil((lo + hi) / 2);
++    if (crosses(mid)) lo = mid;
++    else hi = mid - 1;
++  }
++  const k = lo;
++
++  const bidK = priceAtUnit(bids, k) as number;
++  const askK = priceAtUnit(asks, k) as number;
++  const bidNext = priceAtUnit(bids, k + 1);
++  const askNext = priceAtUnit(asks, k + 1);
++
++  if (bidNext !== null && askNext !== null) {
++    const p = (bidNext + askNext) / 2;
++    if (askK <= p && p <= bidK) {
++      const buys = allocate(bids, k);
++      const sells = allocate(asks, k);
++      return {
++        rule: "uniform",
++        tradedUnits: k,
++        buyerPrice: p,
++        sellerPrice: p,
++        fills: new Map([...buys, ...sells]),
++        mechanismSurplus: 0,
++      };
++    }
++  }
++
++  const traded = k - 1;
++  if (traded <= 0) return { ...NO_TRADE, fills: new Map() };
++  return {
++    rule: "trade-reduction",
++    tradedUnits: traded,
++    buyerPrice: bidK,
++    sellerPrice: askK,
++    fills: new Map([...allocate(bids, traded), ...allocate(asks, traded)]),
++    mechanismSurplus: (bidK - askK) * traded,
++  };
++}
+-- 
+2.43.0
+
