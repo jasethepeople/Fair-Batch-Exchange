@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Fair Exchange"
+description = "A transparent batch-auction exchange prototype for exploring sealed orders, uniform-price clearing, and decentralized committee validation. Simulation only; it does not handle real funds or assets."
+version = "1.0.0"
+id = "artifacts/fair-exchange"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22060
+
+[services.development]
+run = "pnpm --filter @workspace/fair-exchange run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/fair-exchange", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/fair-exchange/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22060"
+BASE_PATH = "/"

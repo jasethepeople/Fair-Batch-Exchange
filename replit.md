@@ -1,6 +1,6 @@
-# [Project name]
+# Fair Exchange
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A simulation of a censorship-resistant batch-auction exchange designed to reduce velocity advantages through sealed orders, uniform pricing, and committee validation.
 
 ## Run & Operate
 
@@ -22,19 +22,25 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/fair-exchange/` — browser exchange simulation
+- `artifacts/api-server/src/lib/exchange-engine.ts` — in-memory auction and committee simulation
+- `artifacts/api-server/src/routes/exchange.ts` — exchange API routes
+- `lib/api-spec/openapi.yaml` — source of truth for API contracts
+- `artifacts/fair-exchange/README.md` — simulation limits, auction policy, failure assumptions, and future phases
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- This first milestone is an in-memory simulation; it does not connect to a chain, custody assets, or perform threshold encryption.
+- The target product must remain non-custodial, with no privileged administrative keys or central operator.
+- Uniform-price auction tie-breaking is explicit and documented; changes require economic review because allocation policy affects incentives.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Traders can inspect a demo batch, submit or cancel sealed limit orders, observe simulated committee quorum and reveal steps, clear the batch at a uniform price, and explore failure scenarios and the audit log.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- The product blueprint prioritizes fairness over speed, transparent failure behavior, user autonomy, and structural resilience.
 
 ## Gotchas
 

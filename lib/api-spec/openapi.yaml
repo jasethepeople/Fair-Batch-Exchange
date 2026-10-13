@@ -3,13 +3,15 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API for the Fair Exchange batch-auction simulation
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: exchange
+    description: Fair Exchange simulation
 paths:
   /healthz:
     get:
@@ -24,6 +26,108 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /exchange:
+    get:
+      operationId: getExchange
+      tags: [exchange]
+      summary: Get exchange market, active batch, committee, orders, and audit log
+      responses:
+        "200":
+          description: Current simulation snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExchangeSnapshot"
+  /exchange/orders:
+    post:
+      operationId: submitOrder
+      tags: [exchange]
+      summary: Submit a sealed demo order to the active batch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Order accepted into the active simulation batch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Invalid order or batch is not accepting orders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /exchange/batches/{batchId}/clear:
+    post:
+      operationId: clearBatch
+      tags: [exchange]
+      summary: Reveal and clear the active batch using uniform pricing
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated simulation after batch processing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExchangeSnapshot"
+        "400":
+          description: Batch cannot be cleared or the committee lacks quorum
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /exchange/simulations:
+    post:
+      operationId: runExchangeScenario
+      tags: [exchange]
+      summary: Run a named demonstration scenario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScenarioInput"
+      responses:
+        "200":
+          description: Updated simulation after scenario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExchangeSnapshot"
+  /exchange/orders/{orderId}/cancel:
+    post:
+      operationId: cancelOrder
+      tags: [exchange]
+      summary: Cancel a user's own sealed order before the batch closes
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Order cannot be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +137,215 @@ components:
           type: string
       required:
         - status
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    Market:
+      type: object
+      properties:
+        id:
+          type: string
+        baseAsset:
+          type: string
+        quoteAsset:
+          type: string
+        referencePrice:
+          type: number
+      required: [id, baseAsset, quoteAsset, referencePrice]
+    AuctionBatch:
+      type: object
+      properties:
+        id:
+          type: string
+        round:
+          type: integer
+        status:
+          type: string
+          enum: [COLLECTING, DECRYPTING, CLEARING, SETTLED, ABORTED]
+        cutoffAt:
+          type: string
+          format: date-time
+        secondsToCutoff:
+          type: integer
+        thresholdShares:
+          type: integer
+        sharesReceived:
+          type: integer
+        quorumReached:
+          type: boolean
+        submittedOrderCount:
+          type: integer
+        clearingPrice:
+          type: [number, "null"]
+        matchedVolume:
+          type: number
+        outcome:
+          type: [string, "null"]
+      required:
+        - id
+        - round
+        - status
+        - cutoffAt
+        - secondsToCutoff
+        - thresholdShares
+        - sharesReceived
+        - quorumReached
+        - submittedOrderCount
+        - clearingPrice
+        - matchedVolume
+        - outcome
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        batchId:
+          type: string
+        side:
+          type: [string, "null"]
+          enum: [buy, sell, null]
+        quantity:
+          type: [number, "null"]
+        limitPrice:
+          type: [number, "null"]
+        filledQuantity:
+          type: number
+        status:
+          type: string
+          enum: [SEALED, FILLED, PARTIALLY_FILLED, UNFILLED, CANCELLED, ABORTED]
+        commitment:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        ownerLabel:
+          type: string
+        isMine:
+          type: boolean
+        privacyNote:
+          type: string
+      required:
+        - id
+        - batchId
+        - side
+        - quantity
+        - limitPrice
+        - filledQuantity
+        - status
+        - commitment
+        - createdAt
+        - ownerLabel
+        - isMine
+        - privacyNote
+    CommitteeMember:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        status:
+          type: string
+          enum: [READY, SHARE_RECEIVED, OFFLINE, SLASHED]
+        shareReceived:
+          type: boolean
+      required: [id, label, status, shareReceived]
+    Committee:
+      type: object
+      properties:
+        threshold:
+          type: integer
+        totalMembers:
+          type: integer
+        sharesReceived:
+          type: integer
+        quorumReached:
+          type: boolean
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommitteeMember"
+      required: [threshold, totalMembers, sharesReceived, quorumReached, members]
+    ExchangeStats:
+      type: object
+      properties:
+        totalVolume:
+          type: number
+        settledBatches:
+          type: integer
+        abortedBatches:
+          type: integer
+        activeOrders:
+          type: integer
+        lastClearingPrice:
+          type: [number, "null"]
+      required:
+        - totalVolume
+        - settledBatches
+        - abortedBatches
+        - activeOrders
+        - lastClearingPrice
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        event:
+          type: string
+        detail:
+          type: string
+        status:
+          type: string
+          enum: [INFO, SUCCESS, WARNING, FAILURE]
+      required: [id, timestamp, event, detail, status]
+    ExchangeSnapshot:
+      type: object
+      properties:
+        market:
+          $ref: "#/components/schemas/Market"
+        batch:
+          $ref: "#/components/schemas/AuctionBatch"
+        orders:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+        committee:
+          $ref: "#/components/schemas/Committee"
+        stats:
+          $ref: "#/components/schemas/ExchangeStats"
+        auditEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEvent"
+        simulationOnly:
+          type: boolean
+      required: [market, batch, orders, committee, stats, auditEvents, simulationOnly]
+    OrderInput:
+      type: object
+      properties:
+        side:
+          type: string
+          enum: [buy, sell]
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 1000000
+        limitPrice:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 1000000000
+      required: [side, quantity, limitPrice]
+    ScenarioInput:
+      type: object
+      properties:
+        scenario:
+          type: string
+          enum: [reset, quorum-failure, decryption-timeout, invalid-order]
+      required: [scenario]
 

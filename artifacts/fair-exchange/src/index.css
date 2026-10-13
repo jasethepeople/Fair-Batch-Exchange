@@ -1,0 +1,208 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-border: var(--primary-border);
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-border: var(--secondary-border);
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-border: var(--muted-border);
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-border: var(--accent-border);
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-border: var(--destructive-border);
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-primary-border: var(--sidebar-primary-border);
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+  --font-sans: var(--app-font-sans);
+  --font-serif: var(--app-font-serif);
+  --font-mono: var(--app-font-mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --background: 42 35% 96%;
+  --foreground: 202 28% 16%;
+  --border: 38 19% 85%;
+  --input: 38 19% 85%;
+  --card: 42 35% 99%;
+  --card-foreground: 202 28% 16%;
+  --card-border: 38 19% 85%;
+  --popover: 42 35% 99%;
+  --popover-foreground: 202 28% 16%;
+  --popover-border: 38 19% 85%;
+  --primary: 164 37% 27%;
+  --primary-foreground: 42 35% 97%;
+  --secondary: 37 25% 90%;
+  --secondary-foreground: 202 28% 22%;
+  --muted: 40 22% 92%;
+  --muted-foreground: 202 12% 48%;
+  --accent: 17 66% 55%;
+  --accent-foreground: 42 35% 97%;
+  --destructive: 4 66% 49%;
+  --destructive-foreground: 42 35% 97%;
+  --ring: 164 37% 27%;
+  --chart-1: 164 37% 27%;
+  --chart-2: 17 66% 55%;
+  --chart-3: 201 34% 53%;
+  --chart-4: 39 73% 61%;
+  --chart-5: 202 17% 38%;
+  --sidebar: 42 35% 96%;
+  --sidebar-foreground: 202 28% 16%;
+  --sidebar-border: 38 19% 85%;
+  --sidebar-primary: 164 37% 27%;
+  --sidebar-primary-foreground: 42 35% 97%;
+  --sidebar-accent: 40 22% 92%;
+  --sidebar-accent-foreground: 202 28% 16%;
+  --sidebar-ring: 164 37% 27%;
+  --app-font-sans: 'DM Sans', sans-serif;
+  --app-font-serif: 'Manrope', sans-serif;
+  --app-font-mono: 'DM Mono', monospace;
+  --radius: 0.75rem;
+  --button-outline: rgba(30, 48, 49, 0.12);
+  --badge-outline: rgba(30, 48, 49, 0.08);
+  --elevate-1: rgba(30, 48, 49, 0.035);
+  --elevate-2: rgba(30, 48, 49, 0.07);
+  --primary-border: hsl(164 37% 23%);
+  --secondary-border: hsl(38 19% 82%);
+  --muted-border: hsl(38 19% 82%);
+  --accent-border: hsl(17 66% 48%);
+  --destructive-border: hsl(4 66% 43%);
+  --sidebar-primary-border: hsl(164 37% 23%);
+  --sidebar-accent-border: hsl(38 19% 82%);
+  --shadow-sm: 0 8px 24px rgba(38, 49, 44, 0.045);
+}
+
+.dark {
+  --background: 203 25% 12%;
+  --foreground: 42 27% 91%;
+  --border: 202 15% 26%;
+  --input: 202 15% 26%;
+  --card: 203 23% 15%;
+  --card-foreground: 42 27% 91%;
+  --card-border: 202 15% 26%;
+  --popover: 203 23% 15%;
+  --popover-foreground: 42 27% 91%;
+  --popover-border: 202 15% 26%;
+  --primary: 158 38% 53%;
+  --primary-foreground: 203 25% 12%;
+  --secondary: 202 16% 22%;
+  --secondary-foreground: 42 27% 91%;
+  --muted: 202 16% 22%;
+  --muted-foreground: 202 10% 67%;
+  --accent: 17 66% 59%;
+  --accent-foreground: 203 25% 12%;
+  --destructive: 4 61% 56%;
+  --destructive-foreground: 203 25% 12%;
+  --ring: 158 38% 53%;
+  --chart-1: 158 38% 53%;
+  --chart-2: 17 66% 59%;
+  --chart-3: 201 40% 63%;
+  --chart-4: 39 73% 66%;
+  --chart-5: 202 17% 65%;
+  --sidebar: 203 25% 12%;
+  --sidebar-foreground: 42 27% 91%;
+  --sidebar-border: 202 15% 26%;
+  --sidebar-primary: 158 38% 53%;
+  --sidebar-primary-foreground: 203 25% 12%;
+  --sidebar-accent: 202 16% 22%;
+  --sidebar-accent-foreground: 42 27% 91%;
+  --sidebar-ring: 158 38% 53%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    font-feature-settings: "ss01" on;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--app-font-serif);
+  }
+
+  .font-mono {
+    font-family: var(--app-font-mono);
+  }
+}
+
+.console-grid {
+  background-image: linear-gradient(rgba(43, 71, 64, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(43, 71, 64, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.enter-up {
+  animation: enter-up 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.enter-delay-1 {
+  animation-delay: 80ms;
+}
+
+.enter-delay-2 {
+  animation-delay: 150ms;
+}
+
+.enter-delay-3 {
+  animation-delay: 220ms;
+}
+
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 3px;
+}
