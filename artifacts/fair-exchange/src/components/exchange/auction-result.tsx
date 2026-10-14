@@ -1,6 +1,6 @@
 import { ArrowRight, Scale, Sparkles } from 'lucide-react';
 import type { AuctionBatch, Market } from '@workspace/api-client-react';
-import { SectionTitle, StatusTag } from './ui-pieces';
+import { StatusTag } from './ui-pieces';
 
 function formatPrice(value: number | null, quote: string, settled: boolean, aborted: boolean) {
   if (value !== null) {
@@ -35,15 +35,21 @@ export function AuctionResult({
 
   return (
     <section className="overflow-hidden rounded-2xl border border-[#2f5548] bg-[#213a35] text-[#f5f1e6] shadow-sm">
-      <div className="flex items-center justify-between px-5 pt-5 sm:px-6">
-        <SectionTitle
-          eyebrow={`03 / Reveal & ${batch.clearingRule === 'trade-reduction' ? 'trade reduction' : 'match'}`}
-          title="McAfee auction result"
-          trailing={<Scale size={17} className="text-[#bdcbbd]" />}
-        />
-        <StatusTag tone={settled ? 'good' : aborted ? 'bad' : ruleTone}>
-          {settled ? 'Settled' : aborted ? 'Aborted' : 'Awaiting reveal'}
-        </StatusTag>
+      <div className="flex items-start justify-between gap-3 px-5 pt-5 sm:px-6">
+        <div className="min-w-0">
+          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.16em] text-[#afc0b4]">
+            03 / Reveal & {batch.clearingRule === 'trade-reduction' ? 'trade reduction' : 'match'}
+          </p>
+          <h2 className="font-display text-lg font-bold tracking-[-0.04em] text-[#f7f3e7]">
+            McAfee result
+          </h2>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 pt-1">
+          <Scale size={17} className="text-[#bdcbbd]" />
+          <StatusTag tone={settled ? 'good' : aborted ? 'bad' : ruleTone}>
+            {settled ? 'Settled' : aborted ? 'Aborted' : 'Awaiting reveal'}
+          </StatusTag>
+        </div>
       </div>
       <p className="px-5 pb-3 font-mono text-[9px] uppercase tracking-[0.1em] text-[#afc0b4] sm:px-6">
         {ruleLabel}

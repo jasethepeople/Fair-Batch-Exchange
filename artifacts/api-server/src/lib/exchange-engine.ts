@@ -179,9 +179,9 @@ const defaultStats: ExchangeStats = {
   settledBatches: 17,
   abortedBatches: 1,
   activeOrders: 0,
-  lastBuyerPrice: 99.9,
-  lastSellerPrice: 99.9,
-  lastClearingRule: "uniform",
+  lastBuyerPrice: null,
+  lastSellerPrice: null,
+  lastClearingRule: "none",
 };
 
 let state = createInitialState(18, defaultStats, []);
