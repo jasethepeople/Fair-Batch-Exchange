@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
@@ -30,7 +30,12 @@ import { ScenarioControls } from '@/components/exchange/scenario-controls';
 import { AuditLog } from '@/components/exchange/audit-log';
 
 function errorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error) {
+    if (/order window has closed/i.test(error.message)) {
+      return 'The order window closed before the request reached the server. Clear this batch or reset the simulation to accept new orders.';
+    }
+    return error.message;
+  }
   return 'The request could not be completed. Check the simulation service and try again.';
 }
 
@@ -91,6 +96,12 @@ export default function ExchangePage() {
   const cancelOrder = useCancelOrder();
   const [notice, setNotice] = useState('');
   const [activeScenario, setActiveScenario] = useState<ScenarioInputScenario>();
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   async function refreshExchange() {
     await queryClient.invalidateQueries({ queryKey: getGetExchangeQueryKey() });
@@ -102,6 +113,10 @@ export default function ExchangePage() {
   }
 
   const snapshot = exchangeQuery.data;
+  const secondsToCutoff = snapshot.batch.status === 'COLLECTING'
+    ? Math.max(0, Math.ceil((new Date(snapshot.batch.cutoffAt).getTime() - now) / 1000))
+    : 0;
+  const orderWindowOpen = snapshot.batch.status === 'COLLECTING' && secondsToCutoff > 0;
   const isPending = submitOrder.isPending || clearBatch.isPending || runScenario.isPending || cancelOrder.isPending;
   const mutationError = submitOrder.error || clearBatch.error || runScenario.error || cancelOrder.error;
 
@@ -291,7 +306,7 @@ export default function ExchangePage() {
           )}
 
           <div id="market" className="enter-up">
-            <MarketOverview snapshot={snapshot} />
+            <MarketOverview snapshot={snapshot} secondsToCutoff={secondsToCutoff} />
           </div>
           <div className="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_352px]">
             <div className="min-w-0 space-y-5">
@@ -299,6 +314,7 @@ export default function ExchangePage() {
                 <div className="enter-up enter-delay-1">
                   <OrderTicket
                     batch={snapshot.batch}
+                    orderWindowOpen={orderWindowOpen}
                     pending={submitOrder.isPending}
                     onSubmit={handleSubmit}
                   />
@@ -307,6 +323,7 @@ export default function ExchangePage() {
                   <OrderFlow
                     orders={snapshot.orders}
                     batch={snapshot.batch}
+                    orderWindowOpen={orderWindowOpen}
                     market={snapshot.market}
                     onCancel={handleCancel}
                     cancellingOrderId={cancelOrder.isPending ? cancelOrder.variables?.orderId : undefined}

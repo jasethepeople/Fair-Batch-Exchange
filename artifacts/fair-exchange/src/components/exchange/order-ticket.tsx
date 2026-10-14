@@ -5,10 +5,12 @@ import { SectionTitle, StatusTag } from './ui-pieces';
 
 export function OrderTicket({
   batch,
+  orderWindowOpen,
   pending,
   onSubmit,
 }: {
   batch: AuctionBatch;
+  orderWindowOpen: boolean;
   pending: boolean;
   onSubmit: (side: 'buy' | 'sell', quantity: number, limitPrice: number) => void;
 }) {
@@ -16,10 +18,15 @@ export function OrderTicket({
   const [quantity, setQuantity] = useState('');
   const [limitPrice, setLimitPrice] = useState('');
   const [validation, setValidation] = useState('');
-  const canSubmit = batch.status === 'COLLECTING' && !pending;
+  const canSubmit = orderWindowOpen && !pending;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (batch.status === 'COLLECTING' && !orderWindowOpen) {
+      setValidation('The order window has closed. Clear or reset the batch.');
+      return;
+    }
+    if (!canSubmit) return;
     const parsedQuantity = Number(quantity);
     const parsedPrice = Number(limitPrice);
     if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0 || !Number.isFinite(parsedPrice) || parsedPrice <= 0) {
@@ -41,6 +48,7 @@ export function OrderTicket({
         <button
           type="button"
           data-testid="button-side-buy"
+          disabled={!canSubmit}
           aria-pressed={side === 'buy'}
           onClick={() => setSide('buy')}
           className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-colors ${side === 'buy' ? 'bg-[#2d5c4c] text-[#f5f2e8] shadow-sm' : 'text-[#66766e] hover:text-[#213a35]'}`}
@@ -50,6 +58,7 @@ export function OrderTicket({
         <button
           type="button"
           data-testid="button-side-sell"
+          disabled={!canSubmit}
           aria-pressed={side === 'sell'}
           onClick={() => setSide('sell')}
           className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-colors ${side === 'sell' ? 'bg-[#d97555] text-white shadow-sm' : 'text-[#66766e] hover:text-[#213a35]'}`}
@@ -112,11 +121,15 @@ export function OrderTicket({
           Your submitted order appears as a commitment. Order details are hidden until simulated reveal.
         </p>
       </div>
-      {!canSubmit && (
+      {batch.status === 'COLLECTING' && !orderWindowOpen ? (
+        <p className="mt-3 rounded-lg border border-[#ead5c5] bg-[#fbf0e7] px-3 py-2 text-xs text-[#8f523d]" role="status">
+          The order window is closed. Clear this batch or reset the simulation to open a new one.
+        </p>
+      ) : !canSubmit ? (
         <p className="mt-3 text-xs text-muted-foreground" role="status">
           New orders are disabled while this batch is {batch.status.toLowerCase()}.
         </p>
-      )}
+      ) : null}
     </section>
   );
 }

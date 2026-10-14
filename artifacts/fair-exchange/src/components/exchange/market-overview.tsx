@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { Activity, ArrowUpRight, Clock3, Layers3, ShieldCheck } from 'lucide-react';
 import type { ExchangeSnapshot } from '@workspace/api-client-react';
 import { Metric, StatusTag } from './ui-pieces';
@@ -8,21 +7,19 @@ function price(value: number | null | undefined, quoteAsset: string) {
   return `${quoteAsset} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
 }
 
-export function MarketOverview({ snapshot }: { snapshot: ExchangeSnapshot }) {
+export function MarketOverview({
+  snapshot,
+  secondsToCutoff,
+}: {
+  snapshot: ExchangeSnapshot;
+  secondsToCutoff: number;
+}) {
   const { market, batch, stats } = snapshot;
-  const [now, setNow] = useState(() => Date.now());
-  const phase = batch.status.toLowerCase().replace('_', ' ');
-  const seconds = batch.status === 'COLLECTING'
-    ? Math.max(0, Math.ceil((new Date(batch.cutoffAt).getTime() - now) / 1000))
-    : 0;
-  const timeLabel = seconds >= 60
-    ? `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`
-    : `${seconds}s`;
-
-  useEffect(() => {
-    const interval = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(interval);
-  }, []);
+  const windowClosed = batch.status === 'COLLECTING' && secondsToCutoff === 0;
+  const phase = windowClosed ? 'order window closed' : batch.status.toLowerCase().replace('_', ' ');
+  const timeLabel = secondsToCutoff >= 60
+    ? `${Math.floor(secondsToCutoff / 60)}m ${String(secondsToCutoff % 60).padStart(2, '0')}s`
+    : `${secondsToCutoff}s`;
 
   return (
     <section className="overflow-hidden rounded-2xl border border-[#d9d7c9] bg-[#fbfaf5] shadow-sm">
@@ -33,7 +30,7 @@ export function MarketOverview({ snapshot }: { snapshot: ExchangeSnapshot }) {
           <span className="absolute -right-1 top-1/2 h-2 w-2 rounded-full bg-[#d97555]" />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <StatusTag tone={batch.status === 'COLLECTING' ? 'good' : batch.status === 'ABORTED' ? 'bad' : 'warn'}>
+          <StatusTag tone={batch.status === 'ABORTED' ? 'bad' : batch.status === 'COLLECTING' && !windowClosed ? 'good' : 'warn'}>
             <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-current" />
             {phase}
           </StatusTag>

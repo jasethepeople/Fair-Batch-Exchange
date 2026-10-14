@@ -24,12 +24,14 @@ function toneForStatus(status: string): 'good' | 'warn' | 'bad' | 'neutral' | 'a
 export function OrderFlow({
   orders,
   batch,
+  orderWindowOpen,
   market,
   onCancel,
   cancellingOrderId,
 }: {
   orders: Order[];
   batch: AuctionBatch;
+  orderWindowOpen: boolean;
   market: Market;
   onCancel: (orderId: string) => void;
   cancellingOrderId?: string;
@@ -79,7 +81,7 @@ export function OrderFlow({
           <div>
             {displayed.map((order) => {
               const hidden = order.side === null || order.quantity === null || order.limitPrice === null;
-              const canCancel = order.isMine && order.status === 'SEALED' && batch.status === 'COLLECTING';
+              const canCancel = order.isMine && order.status === 'SEALED' && orderWindowOpen;
 
               return (
                 <div

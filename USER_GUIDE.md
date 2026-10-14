@@ -21,11 +21,15 @@ The simulator itself stores all state in memory.
    limit price (the worst price you will accept).
 2. **Inspect the order queue.** Your order appears as a commitment; terms are
    hidden from the public API response until a successful simulated reveal.
-3. **Cancel your own order** while the batch is still collecting.
+3. **Cancel your own order** before the batch cutoff.
 4. **Reveal and clear the batch.** The button is available when the simulated
    committee has reached its 3-of-5 threshold.
 5. **Read the McAfee result.** The result reports matched quantity, the price
    paid by buyers, the price received by sellers, and any mechanism surplus.
+
+When the cutoff reaches zero, the app disables new orders and cancellations.
+The batch remains clearable; clear it or reset the simulation to open a new
+batch.
 
 ## Reading the result
 

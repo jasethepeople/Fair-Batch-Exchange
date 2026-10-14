@@ -23,6 +23,8 @@ hold assets, accept wallet keys, or provide production encryption or consensus.
   invalid-order lifecycle.
 - An event log and repeatable success/failure scenarios.
 - In-memory state. Restarting the API resets the simulation.
+- A visible order cutoff: new submissions and cancellations stop at expiry,
+  while the batch remains available to clear or reset.
 
 Run the mechanism tests and the seeded economic comparison with:
 

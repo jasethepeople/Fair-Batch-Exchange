@@ -288,6 +288,9 @@ export function cancelSealedOrder(orderId: string): Order | null {
   if (state.batch.status !== "COLLECTING") {
     return null;
   }
+  if (Date.now() >= state.batch.cutoffAt.getTime()) {
+    return null;
+  }
 
   order.status = "CANCELLED";
   addAuditEvent(
