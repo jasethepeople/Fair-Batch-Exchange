@@ -14,3 +14,17 @@ mtime_ms = 1791982676083
 storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:8247baa7-bec1-46cb-8729-dff3d19c19af/7e69a0d2-abe3-4ded-b92d-24e187e30903/a7b36f2c-f16f-4a0e-8dac-dec94450ba27"
 storage_version_token = "1791982755554094"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "jPPNE16Gr-6FzYnWWxKbK"
+uri = "file://threat_model.md"
+type = "text"
+title = "Fair Exchange Threat Model"
+description = "Current simulation risks and security requirements for encrypted orders, threshold committees, timelock recovery, and settlement."
+logical_id = "437f82d9-5837-485d-bba2-6ab2157ccc8d"
+content_hash = "sha256:09f3a6fb5d6ebe983ae0942a666541164abfbce8ca9b430f1bccb70d80aca45f"
+size = 11788
+mtime_ms = 1791986353477
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:8247baa7-bec1-46cb-8729-dff3d19c19af/437f82d9-5837-485d-bba2-6ab2157ccc8d/56de2443-c56d-40c3-9e9e-65c6cab089ea"
+storage_version_token = "1791986384566079"
+content_type = "text/markdown"
