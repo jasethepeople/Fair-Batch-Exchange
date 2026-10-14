@@ -8,6 +8,9 @@ Run the reproducible experiment with:
 pnpm --filter @workspace/api-server run compare:mechanisms
 ```
 
+For expanded buyer/seller shading, order-splitting, and coordinated-buyer
+experiments, see `STRATEGY_RISK_REPORT.md`.
+
 The script also accepts `DEPTH=60` for a separate deep-book experiment. The
 numbers below are from the default shallow-book run (2,000 books and 100
 under-bidding trials for each strategic order size).

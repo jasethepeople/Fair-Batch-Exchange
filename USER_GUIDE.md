@@ -74,6 +74,8 @@ censorship-resistance claim.
 ```sh
 pnpm --filter @workspace/api-server run test:mechanisms
 pnpm --filter @workspace/api-server run compare:mechanisms
+pnpm --filter @workspace/api-server run strategy:risk
+DEPTH=60 pnpm --filter @workspace/api-server run strategy:risk
 DEPTH=60 pnpm --filter @workspace/api-server run compare:mechanisms
 ```
 

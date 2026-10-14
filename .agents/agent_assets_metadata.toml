@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "3xRu4fgLm8Lxd8fDlbueH"
+uri = "file://STRATEGY_RISK_REPORT.md"
+type = "text"
+title = "Strategy Risk Report"
+description = "Reproducible buyer and seller shading, order-splitting, coordinated-buyer, and deep-book experiments."
+logical_id = "7e69a0d2-abe3-4ded-b92d-24e187e30903"
+content_hash = "sha256:5fcacf8e1907c00d267e80f7cccf109c75da6b5ebad34b78f080fd499e575945"
+size = 3927
+mtime_ms = 1791982676083
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:8247baa7-bec1-46cb-8729-dff3d19c19af/7e69a0d2-abe3-4ded-b92d-24e187e30903/a7b36f2c-f16f-4a0e-8dac-dec94450ba27"
+storage_version_token = "1791982755554094"
+content_type = "text/markdown"

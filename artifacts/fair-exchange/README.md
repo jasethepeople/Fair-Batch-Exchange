@@ -31,6 +31,8 @@ Run the mechanism tests and the seeded economic comparison with:
 ```sh
 pnpm --filter @workspace/api-server run test:mechanisms
 pnpm --filter @workspace/api-server run compare:mechanisms
+pnpm --filter @workspace/api-server run strategy:risk
+DEPTH=60 pnpm --filter @workspace/api-server run strategy:risk
 ```
 
 ## Economic limitation
@@ -43,7 +45,9 @@ under-bidding profitable more often under McAfee than under the max-volume
 comparator in the tested cases. That is a bounded synthetic experiment, not a
 proof that either mechanism is safe from manipulation.
 
-See `MECHANISM_COMPARISON.md` for the methodology and results.
+See `MECHANISM_COMPARISON.md` for the mechanism comparison and
+`STRATEGY_RISK_REPORT.md` for buyer/seller shading, order-splitting, and
+coordinated-buyer experiments.
 
 ## What is not implemented
 

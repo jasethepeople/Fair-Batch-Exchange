@@ -8,8 +8,9 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:mechanisms": "tsx --test src/lib/mcafee.test.ts src/lib/max-volume.test.ts src/lib/exchange-engine.test.ts",
-    "compare:mechanisms": "tsx scripts/compare-mechanisms.ts"
+    "test:mechanisms": "tsx --test src/lib/mcafee.test.ts src/lib/max-volume.test.ts src/lib/exchange-engine.test.ts src/lib/strategy-risk.test.ts",
+    "compare:mechanisms": "tsx scripts/compare-mechanisms.ts",
+    "strategy:risk": "tsx scripts/strategy-risk.ts"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",

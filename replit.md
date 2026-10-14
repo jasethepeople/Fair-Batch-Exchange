@@ -10,6 +10,7 @@ A simulation of a censorship-resistant batch-auction exchange designed to reduce
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/api-server run test:mechanisms` — run clearing-rule and engine tests
 - `pnpm --filter @workspace/api-server run compare:mechanisms` — compare McAfee and max-volume policies
+- `pnpm --filter @workspace/api-server run strategy:risk` — test shading, splitting, and coordinated-buyer strategies
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
 
@@ -29,10 +30,12 @@ A simulation of a censorship-resistant batch-auction exchange designed to reduce
 - `artifacts/api-server/src/lib/mcafee.ts` — active McAfee clearing rule
 - `artifacts/api-server/src/lib/max-volume.ts` — max-volume uniform-price comparison policy
 - `artifacts/api-server/scripts/compare-mechanisms.ts` — reproducible economic comparison
+- `artifacts/api-server/scripts/strategy-risk.ts` — reproducible multi-strategy experiments
 - `artifacts/api-server/src/routes/exchange.ts` — exchange API routes
 - `lib/api-spec/openapi.yaml` — source of truth for API contracts
 - `artifacts/fair-exchange/README.md` — simulation limits, auction policy, failure assumptions, and future phases
 - `MECHANISM_COMPARISON.md` and `whitepaper-outline.md` — experiment summary and protocol-paper structure
+- `STRATEGY_RISK_REPORT.md` — buyer/seller shading, splitting, and collusion experiment results
 
 ## Architecture decisions
 
